@@ -1,4 +1,5 @@
-﻿using HarmonyLib;
+﻿using System;
+using HarmonyLib;
 using RimWorld;
 using System.Collections.Generic;
 using System.Reflection.Emit;
@@ -76,41 +77,54 @@ namespace Tacticowl.DualWield
             return instance.pawn.HasOffHand() ? null : instance.Primary;
         }
     }
-    [HarmonyPatch(typeof(Pawn_EquipmentTracker), nameof(Pawn_EquipmentTracker.MakeRoomFor))]
+    [HarmonyPatch(typeof(Pawn_EquipmentTracker), nameof(Pawn_EquipmentTracker.MakeRoomFor), new Type[] {typeof(ThingWithComps), typeof(ThingWithComps)}, new ArgumentType[] {ArgumentType.Normal, ArgumentType.Out} )]
     class Patch_Pawn_EquipmentTracker_MakeRoomFor
     {
         static bool Prepare()
         {
             return Settings.dualWieldEnabled;
         }
-        static bool Prefix(Pawn_EquipmentTracker __instance, ThingWithComps eq)
+        static bool Prefix(Pawn_EquipmentTracker __instance, ThingWithComps eq, out ThingWithComps dropped)
         {
             Pawn pawn = __instance.pawn;
             bool pawnHasOffhand = pawn.HasOffHand();
             ThingDef def = eq.def;
-
+            dropped = null;
             if (Settings.VFECoreEnabled && Settings.IsShield(def) && !pawnHasOffhand) return false; //This is a shield and there's no offhand, return false because it was already handled by VEF
-            if ((!pawnHasOffhand && !eq.IsOffHandedWeapon()) || //We don't have an offhand and this is not an offhand. Anything we're equipping can be handled normally
-                (pawnHasOffhand && !eq.IsOffHandedWeapon() && !def.IsTwoHanded() && (!Settings.VFECoreEnabled || !Settings.IsShield(def))) //We are dual wielding but swapping out the main hand weapon, it can be swapped normally
-            ) return true;
+            if ((!pawnHasOffhand &&
+                 !eq.IsOffHandedWeapon()) || //We don't have an offhand and this is not an offhand. Anything we're equipping can be handled normally
+                (pawnHasOffhand && !eq.IsOffHandedWeapon() && !def.IsTwoHanded() &&
+                 (!Settings.VFECoreEnabled ||
+                  !Settings.IsShield(
+                      def))) //We are dual wielding but swapping out the main hand weapon, it can be swapped normally
+               )
+            {
+                return true;
+            }
 
             if (!pawn.GetOffHander(out ThingWithComps currentOffHand))
             {
                 if (Settings.VFECoreEnabled) currentOffHand = Settings.OffHandShield(pawn);
-                if (currentOffHand != null && !eq.IsOffHandedWeapon() && !def.IsTwoHanded() && !pawn.HasOffHand()) return false; //Don't do anything, VE already handled it and we have nothing to do
+                if (currentOffHand != null && !eq.IsOffHandedWeapon() && !def.IsTwoHanded() && !pawn.HasOffHand())
+                {
+                    dropped = currentOffHand;
+                    return false;
+                } //Don't do anything, VE already handled it and we have nothing to do
             }
-
+            
             if (currentOffHand != null)
             {
                 bool success = false;
                 if (currentOffHand is not Apparel)
                 {
                     success = pawn.equipment.TryDropEquipment(currentOffHand, out currentOffHand, pawn.Position, true);
+                    dropped = currentOffHand;
                     if (def.IsTwoHanded()) return true; //Need to let the normal removal handle the primary weapon
                 }
                 else if (Settings.VFECoreEnabled && currentOffHand is Apparel apparel)
                 {
                     success = pawn.apparel.TryDrop(apparel, out apparel, pawn.Position, true);
+                    dropped = apparel;
                 }
                 if (!success) Log.Error("[Tacticowl] " + pawn.Label + " couldn't make room for equipment");
             }

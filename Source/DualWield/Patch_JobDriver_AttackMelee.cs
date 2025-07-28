@@ -47,16 +47,22 @@ namespace Tacticowl.DualWield
                 typeof(DualWieldUtility),
                 nameof(DualWieldUtility.TryMeleeAttackBothHands)
             );
-
+            bool found = false;
             foreach (var instruction in instructions)
             {
                 if (instruction.OperandIs(tryMeleeAttack))
                 {
                     yield return new CodeInstruction(OpCodes.Call, tryMeleeAttackBothHands);
                     Log.Message("Replacing TryMeleeAttack");
+                    found = true;
                 }
                 else yield return instruction;
 
+            }
+
+            if (!found)
+            {
+                Log.Message("TryMeleeAttack not found");
             }
         
     }
