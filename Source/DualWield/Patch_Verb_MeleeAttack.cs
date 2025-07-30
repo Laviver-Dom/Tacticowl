@@ -18,13 +18,19 @@ namespace Tacticowl.DualWield
         {
             bool found = false;
             var method = AccessTools.Property(typeof(Pawn_StanceTracker), nameof(Pawn_StanceTracker.FullBodyBusy)).GetGetMethod();
+            var currentHandBusy = AccessTools.Method(
+                typeof(DualWieldUtility), 
+                nameof(DualWieldUtility.CurrentHandBusy)
+            );
             foreach (CodeInstruction instruction in instructions)
             {
                 if (!found && instruction.opcode == OpCodes.Callvirt && instruction.OperandIs(method))
                 {
                     found = true;
                     yield return new CodeInstruction(OpCodes.Ldarg_0);
-                    yield return new CodeInstruction(OpCodes.Call, typeof(Patch_Verb_MeleeAttack_TryCastShot).GetMethod(nameof(CurrentHandBusy)));
+                    yield return new CodeInstruction(OpCodes.Call,
+                        currentHandBusy
+                    );
                 }
                 else
                 {
@@ -32,12 +38,6 @@ namespace Tacticowl.DualWield
                 }
             }
             if (!found) Log.Error("[Tacticowl] Patch_Verb_MeleeAttack_TryCastShot transpiler failed to find its target. Did RimWorld update?");
-        }
-        public static bool CurrentHandBusy(Pawn_StanceTracker instance, Verb verb)
-        {
-            if (instance.stunner.Stunned) return true;
-            if (verb.EquipmentSource.IsOffHandedWeapon()) return !verb.Available() || instance.pawn.GetOffHandStance().StanceBusy;
-            return instance.pawn.stances.curStance.StanceBusy;
         }
     }
 }

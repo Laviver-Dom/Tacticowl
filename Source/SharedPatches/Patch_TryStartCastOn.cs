@@ -8,7 +8,7 @@ using Settings = Tacticowl.ModSettings_Tacticowl;
 
 namespace Tacticowl.DualWield
 {
-    //Tick the stance tracker of the offfhand weapon
+    //Tick the stance tracker of the offhand weapon
     [HarmonyPatch(typeof(Verb), nameof(Verb.TryStartCastOn), new Type[] { typeof(LocalTargetInfo), typeof(LocalTargetInfo), typeof(bool), typeof(bool), typeof(bool), typeof(bool) } )]
     class Patch_TryStartCastOn
     {
@@ -53,18 +53,32 @@ namespace Tacticowl.DualWield
             if (!found) Log.Error("[Tacticowl] Patch_TryStartCastOn transpiler failed to find its target. Did RimWorld update?");
         }
 
-        static void Postfix(ref bool __result, Verb __instance, LocalTargetInfo castTarg)
+        static void Prefix( )
+        {
+            Log.Message("TryStartCastOne");
+        }
+        // The secret sauce method
+        // Old signature:
+        // static void Postfix_Disable(ref bool __result, Verb __instance, LocalTargetInfo castTarg)
+        //
+        // This postfix method is no longer used and everything works without it. I am, however, skeptical that
+        // the alternative implementation is "finished" and likely still needs more work. I'm leaving this here
+        // as a reminder of what things used to be in case I need the old version for a copy-paste.
+        static void Unused_Method(ref bool __result, Verb __instance, LocalTargetInfo castTarg)
         {
             //Check if it's an enemy that's attacked, and not a fire or an arguing husband
             //TODO: this could probably be transpiled in somehow
+            Log.Message("Entered Postfix");
             if (Settings.dualWieldEnabled && !__instance.EquipmentSource.IsOffHandedWeapon() && 
                 __instance.caster is Pawn casterPawn && !casterPawn.InMentalState && castTarg.Thing is not Fire)
             {
-                __result = DualWieldUtility.TryStartOffHandAttack(casterPawn, castTarg, __result);
+                __result = DualWieldUtility.TryStartOffHandAttack(casterPawn, castTarg) || __result;
             }
         }
         
-
+        // This is an important part of everything but I think needs improvements somehow.
+        // How this method is integrated during transpiling seems like a misstep but I'm not sure what the alternative
+        // is at this time. Solving this may be the key.
         public static bool CheckTactics(Verb verb, int ticks, LocalTargetInfo castTarg)
         {
             Pawn pawn = verb.CasterPawn;

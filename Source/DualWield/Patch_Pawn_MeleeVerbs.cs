@@ -1,6 +1,7 @@
 ﻿using HarmonyLib;
 using RimWorld;
 using System.Collections.Generic;
+using System.Reflection.Emit;
 using Verse;
 using Settings = Tacticowl.ModSettings_Tacticowl;
 
@@ -24,6 +25,7 @@ namespace Tacticowl.DualWield
         }
     }
 
+    // Patch TryMeleeAttack to use can main hand attack
     [HarmonyPatch(typeof(Pawn_MeleeVerbs), nameof(Pawn_MeleeVerbs.TryMeleeAttack))]
     class Patch_Pawn_MeleeVerbs_TryMeleeAttack
     {
@@ -31,19 +33,37 @@ namespace Tacticowl.DualWield
         {
             return Settings.dualWieldEnabled;
         }
-        static bool Postfix(bool __result, Pawn_MeleeVerbs __instance, Thing target, Verb verbToUse, bool surpriseAttack)
+
+        static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
         {
-            Pawn pawn = __instance.pawn;
-            if (!pawn.HasOffHand()) return __result;
-
-            var stance = pawn.GetOffHandStance();
-            if (stance is Stance_Warmup_DW || stance is Stance_Cooldown || pawn.InMentalState) return __result;
-
-            if (DualWieldUtility.TryGetMeleeVerbOffHand(pawn, target, out Verb verb))
+            var fullBodyBusyMethod = AccessTools.Property(
+                typeof(Pawn_StanceTracker), 
+                nameof(Pawn_StanceTracker.FullBodyBusy)
+            ).GetGetMethod();
+            var currentHandBusy = AccessTools.Method(
+                typeof(DualWieldUtility), 
+                nameof(DualWieldUtility.CurrentHandBusy)
+            );
+            foreach (CodeInstruction instruction in instructions)
             {
-                return DualWieldUtility.TryStartOffHandAttack(pawn, target, __result) || __result;
+                if (instruction.OperandIs(fullBodyBusyMethod))
+                {
+                    // yield return new CodeInstruction(OpCodes.Pop);
+                    // yield return new CodeInstruction(OpCodes.Ldarg_0);
+                    // yield return new CodeInstruction(OpCodes.Ldfld, 
+                    //     AccessTools.Field(typeof(Pawn_MeleeVerbs), nameof(Pawn_MeleeVerbs.pawn))
+                    // );
+                    yield return new CodeInstruction(OpCodes.Ldarg_0);
+                    yield return new CodeInstruction(
+                        OpCodes.Call,
+                        currentHandBusy
+                        );
+
+                }
+                else yield return instruction;
             }
-            return __result;
+            
         }
+        
     }
 }

@@ -14,32 +14,34 @@ namespace Tacticowl.DualWield
             return Settings.dualWieldEnabled;
         }
 		static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions, ILGenerator generator)
-        {
-			bool found = false;
-			var label = generator.DefineLabel();
-			var method = AccessTools.Property(typeof(Stance), nameof(Stance.StanceBusy)).GetGetMethod();
+		{
+			foreach (var instruction in instructions) yield return instruction;
+			var stanceBusyMethod = AccessTools.Property(typeof(Stance), nameof(Stance.StanceBusy)).GetGetMethod();
+			var offhandBusyMethod = AccessTools.Method(
+				typeof(Patch_Pawn_StanceTracker_FullBodyBusy),
+				nameof(Patch_Pawn_StanceTracker_FullBodyBusy.OffHandStanceBusy)
+			);
+			// The original statement is
+			// FullBodyBusy => this.stunner.Stunned || this.curStance.StanceBusy;
 
-			foreach (var instruction in instructions)
-			{
-				if (instruction.opcode == OpCodes.Ldc_I4_1) 
-				{
-					instruction.labels.Add(label);
-					break;
-				}
-			}
-
+			// New statement, full body busy 
+			// FullBodyBusy => thus.stunner.Stunned || this.curStance.StanceBusy || OffHandStanceBusy
+			object returnTrueOperand = null;
 			foreach (var instruction in instructions)
 			{
 				yield return instruction;
-				if (!found && instruction.opcode == OpCodes.Callvirt && instruction.OperandIs(method))
+				if (instruction.opcode == OpCodes.Brtrue_S)
 				{
-					found = true;
-					yield return new CodeInstruction(OpCodes.Brtrue_S, label);
+					returnTrueOperand = instruction.operand;
+				}
+				if (instruction.opcode == OpCodes.Callvirt && instruction.OperandIs(stanceBusyMethod))
+				{
+					yield return new CodeInstruction(OpCodes.Brtrue_S, returnTrueOperand);
 					yield return new CodeInstruction(OpCodes.Ldarg_0);
-					yield return new CodeInstruction(OpCodes.Call, AccessTools.Method(typeof(Patch_Pawn_StanceTracker_FullBodyBusy), nameof(Patch_Pawn_StanceTracker_FullBodyBusy.OffHandStanceBusy)));
+					yield return new CodeInstruction(OpCodes.Call, offhandBusyMethod);
+					yield return new CodeInstruction(OpCodes.Ret);
 				}
 			}
-			if (!found) Log.Error("[Tacticowl] Patch_Pawn_StanceTracker_FullBodyBusy transpiler failed to find its target. Did RimWorld update?");
 		}
 		public static bool OffHandStanceBusy(Pawn_StanceTracker __instance)
 		{

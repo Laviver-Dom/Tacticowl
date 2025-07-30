@@ -3,7 +3,7 @@
     <PropertyGroup>
         <Product>Tacticowl</Product>
         <AssemblyVersion>2.0.23</AssemblyVersion>
-        <Version>1.5</Version>
+        <Version>1.6</Version>
         <Copyright>$([System.DateTime]::Now.ToString('yyyy'))</Copyright>
         <Company>Owlchemist</Company>
         <TargetFramework>net48</TargetFramework>
@@ -11,14 +11,14 @@
         <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
-        <OutputPath>..\..\..\Mods\Tacticowl\1.5\Assemblies\</OutputPath>
+        <OutputPath>..\..\..\Mods\Tacticowl\1.6\Assemblies\</OutputPath>
         <DefineConstants>TRACE;NDEBUG</DefineConstants>
         <WarningLevel>4</WarningLevel>
         <DebugSymbols>false</DebugSymbols>
         <DebugType>None</DebugType>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
-        <OutputPath>..\..\..\Mods\Tacticowl\1.5\Assemblies\</OutputPath>
+        <OutputPath>..\..\..\Mods\Tacticowl\1.6\Assemblies\</OutputPath>
         <DefineConstants>TRACE;DEBUG;NETFRAMEWORK;NET48;</DefineConstants>
         <DebugSymbols>false</DebugSymbols>
     </PropertyGroup>
@@ -32,7 +32,7 @@
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
             <PrivateAssets>all</PrivateAssets>
         </PackageReference>
-        <PackageReference Include="Krafs.Rimworld.Ref" Version="1.5.*" />
+        <PackageReference Include="Krafs.Rimworld.Ref" Version="1.6.*" />
         <!-- <PackageReference Include="RimWorld.MultiplayerAPI" Version="0.4.0" /> -->
     </ItemGroup>
     <ItemGroup>
@@ -50,5 +50,9 @@
             <HintPath>..\..\..\RimWorldWin64_Data\Managed\UnityEngine.IMGUIModule.dll</HintPath>
             <Private>false</Private>
         </Reference>
+    </ItemGroup>
+    <ItemGroup>
+<!--        <Compile Include="DualWield/" />-->
+        <Compile Remove="DualWield\Patch_FloatMenuMakerMap.cs" />
     </ItemGroup>
 </Project>
