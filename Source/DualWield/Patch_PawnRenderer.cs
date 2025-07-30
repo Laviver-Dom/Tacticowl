@@ -3,6 +3,7 @@ using UnityEngine;
 using Verse;
 using RimWorld;
 using System.Collections.Generic;
+using System.Reflection;
 using System.Reflection.Emit;
 using Settings = Tacticowl.ModSettings_Tacticowl;
 
@@ -33,31 +34,40 @@ namespace Tacticowl.DualWield
 			if (!found) Log.Error("[Tacticowl] Patch_PawnRenderer_RenderPawnAt transpiler failed to find its target. Did RimWorld update?");
 		}
 	}
+
 	[HarmonyPatch(typeof(PawnRenderUtility), nameof(PawnRenderUtility.DrawEquipmentAndApparelExtras))]
 	class Patch_PawnRenderUtility_DrawEquipmentAiming
 	{
 		static bool Prepare()
 		{
+			// Harmony.DEBUG = true;
 			return Settings.dualWieldEnabled;
 		}
 		static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
 		{
-            IEnumerable<CodeInstruction> new_instructions = instructions.MethodReplacer(
-	            AccessTools.Method(
-		            typeof(PawnRenderUtility), 
-		            nameof(PawnRenderUtility.DrawEquipmentAiming)),
-				AccessTools.Method(
+			MethodInfo NewCarriedMethod = AccessTools.Method(
 					typeof(Patch_PawnRenderUtility_DrawEquipmentAiming), 
-					nameof(Patch_PawnRenderUtility_DrawEquipmentAiming.DrawBothEquipmentAiming)));
+					nameof(Patch_PawnRenderUtility_DrawEquipmentAiming.DrawBothCarriedWeapons));
+			MethodInfo NewAimingMethod = AccessTools.Method(
+					typeof(Patch_PawnRenderUtility_DrawEquipmentAiming), 
+					nameof(Patch_PawnRenderUtility_DrawEquipmentAiming.DrawBothEquipmentAiming));
+
+			IEnumerable<CodeInstruction> new_instructions;
+			new_instructions = instructions.MethodReplacer(
+				AccessTools.Method(
+					typeof(PawnRenderUtility),
+					nameof(PawnRenderUtility.DrawEquipmentAiming)),
+				NewAimingMethod);
+			new_instructions = new_instructions.MethodReplacer(
+				AccessTools.Method(
+					typeof(PawnRenderUtility),
+					nameof(PawnRenderUtility.DrawCarriedWeapon)),
+				NewCarriedMethod);
             // Iterate over the instructions and insert the pawn onto the evaluation stack via ldarg.0
-            bool new_call = false;
+            // bool found = false;
             foreach (var instruction in new_instructions)
             {
-	            new_call = instruction.Calls(
-		            AccessTools.Method(typeof(Patch_PawnRenderUtility_DrawEquipmentAiming),
-		            nameof(Patch_PawnRenderUtility_DrawEquipmentAiming.DrawBothEquipmentAiming)
-	            ));
-	            if (new_call)
+	            if (instruction.Calls(NewAimingMethod) || instruction.Calls(NewCarriedMethod))
 	            {
 					Log.Message("[Tacticowl] Found DualWield Call, now adding Pawn to eval stack...");
 		            // Pushes the pawn input to the stack as input for the new method.
@@ -68,6 +78,36 @@ namespace Tacticowl.DualWield
 	            else yield return instruction;
             }
         }
+
+		public static void DrawBothCarriedWeapons(
+			ThingWithComps weapon,
+			Vector3 drawPos,
+			Rot4 facing,
+			float equipmentDrawDistanceFactor,
+			Pawn pawn
+		)
+		{
+			// RimWorld default cases
+			int aimAngle = 143;
+			switch (facing.AsInt)
+			{
+				case 0:
+					drawPos += PawnRenderUtility.EqLocNorth * equipmentDrawDistanceFactor;
+					break;
+				case 1:
+					drawPos += PawnRenderUtility.EqLocEast * equipmentDrawDistanceFactor;
+					break;
+				case 2:
+					drawPos += PawnRenderUtility.EqLocSouth * equipmentDrawDistanceFactor;
+					break;
+				case 3:
+					drawPos += PawnRenderUtility.EqLocWest * equipmentDrawDistanceFactor;
+					aimAngle = 217;
+					break;
+					
+			}
+			DrawBothEquipmentAiming(weapon, drawPos, aimAngle, pawn);	
+		}
 		// public static void DrawBothEquipmentAiming(Thing eq, Vector3 drawLoc, float aimAngle)
 		public static void DrawBothEquipmentAiming(Thing eq, Vector3 drawLoc, float aimAngle, Pawn pawn)
 		{
@@ -90,8 +130,7 @@ namespace Tacticowl.DualWield
 
 			if (pawn.GetOffHandStance() is Stance_Busy offHandStance && !offHandStance.neverAimWeapon)
 			{
-				focusTarg = offHandStance.focusTarg;
-				offHandAiming = CurrentlyAiming(offHandStance);
+				focusTarg = offHandStance.focusTarg; offHandAiming = CurrentlyAiming(offHandStance);
 			}
 
 			//When wielding offHand weapon, facing south, and not aiming, draw differently 

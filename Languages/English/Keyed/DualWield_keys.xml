@@ -57,7 +57,7 @@
 	<DW_AsOffHand>{0} as off-hand weapon: {1}</DW_AsOffHand>
 	<DW_MissArmOrHand>Missing arm or hand</DW_MissArmOrHand>
 	<DW_WieldingTwoHanded>Wielding two-handed weapon</DW_WieldingTwoHanded>
-	<DW_NoTwoHandedInOffHand>Cannot wear two-handed weapon as off-hand</DW_NoTwoHandedInOffHand>
+	<DW_NoTwoHandedInOffHand>Cannot use two-handed weapon as off-hand</DW_NoTwoHandedInOffHand>
 	<DW_CannotBeOffHand>Not configured as secondary weapon in mod options</DW_CannotBeOffHand>
 	
 	<DW_Twohanders>Two-handed weapons cannot be dual wielded, and require both arms to operate.</DW_Twohanders>

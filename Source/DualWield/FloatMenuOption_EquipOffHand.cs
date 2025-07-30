@@ -85,6 +85,8 @@ public class FloatMenuOption_EquipOffHand : FloatMenuOptionProvider
       reason = "DW_MissArmOrHand".Translate();
     else if (pawn.equipment != null && pawn.equipment.Primary != null && pawn.equipment.Primary.def.IsTwoHanded())
       reason = "DW_WieldingTwoHanded".Translate();
+    else if (pawn.equipment != null && clickedThing.def.IsTwoHanded())
+      reason = "DW_NoTwoHandedInOffHand".Translate();
 
 
     if (!reason.NullOrEmpty())
@@ -97,18 +99,18 @@ public class FloatMenuOption_EquipOffHand : FloatMenuOptionProvider
 
 
     // At this point we know whether something _can_ be equipped by the pawn.
-    TaggedString text = (string)"DW_AsOffHand".Translate(
-      (NamedArgument)"Equip".Translate((NamedArgument)labelShort)
-    );
+    TaggedString text = "DW_EquipOffHand".Translate((NamedArgument)labelShort);
+    TaggedString modifs = "";
 
     if (clickedThing.def.IsRangedWeapon && pawn.story != null && pawn.story.traits.HasTrait(TraitDefOf.Brawler))
-      text = $"{text} " + "EquipWarningBrawler".Translate();
-
+      modifs = "EquipWarningBrawler".Translate();
+        
     // This part is a mess...
     // Check is a unbonded weapon should become bonded
     if (!EquipmentUtility.AlreadyBondedToWeapon(clickedThing, pawn))
       return FloatMenuUtility.DecoratePrioritizedTask(
-        new FloatMenuOption(text,
+        new FloatMenuOption(
+          modifs.NullOrEmpty() ? text : "DW_AsOffHand".Translate(text, modifs),
           (Action)(() =>
           {
             string confirmationText = EquipmentUtility.GetPersonaWeaponConfirmationText(clickedThing, pawn);
@@ -127,11 +129,14 @@ public class FloatMenuOption_EquipOffHand : FloatMenuOptionProvider
         pawn,
         (LocalTargetInfo)clickedThing
       );
-    string label2 = (string)(text + (" " + "BladelinkAlreadyBonded".Translate()));
+    modifs = modifs.NullOrEmpty()
+      ? "BladelinkAlreadyBonded".Translate()
+      : $"{modifs} " + "BladelinkAlreadyBonded".Translate();
     TaggedString dialogText = "BladelinkAlreadyBondedDialog".Translate(pawn.Named("PAWN"),
       clickedThing.Named("WEAPON"), pawn.equipment.bondedWeapon.Named("BONDEDWEAPON"));
+    TaggedString final = modifs.NullOrEmpty() ? text : "DW_AsOffHand".Translate(text, modifs);
     return FloatMenuUtility.DecoratePrioritizedTask(
-      new FloatMenuOption(label2, (Action)(() => Find.WindowStack.Add((Window)new Dialog_MessageBox(dialogText))),
+      new FloatMenuOption(final, (Action)(() => Find.WindowStack.Add((Window)new Dialog_MessageBox(dialogText))),
         MenuOptionPriority.High), pawn, (LocalTargetInfo)clickedThing);
 
     void EquipOffHand()
